@@ -1,0 +1,104 @@
+"""
+Postman Collection for RAG Q&A Bot API
+Import this into Postman to test the API
+"""
+
+{
+  "info": {
+    "name": "RAG Q&A Bot API",
+    "description": "Collection for testing RAG Q&A Bot endpoints",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:5000/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["health"]
+        },
+        "description": "Check if the API is running"
+      }
+    },
+    {
+      "name": "Crawl Website",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"url\": \"https://example.com\", \"max_pages\": 20, \"crawl_delay\": 1}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/crawl",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "crawl"]
+        },
+        "description": "Crawl a website and index it for Q&A"
+      }
+    },
+    {
+      "name": "Ask Question",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"question\": \"What is your main product?\", \"top_k\": 5, \"temperature\": 0.7}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/question",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "question"]
+        },
+        "description": "Ask a question about the crawled content"
+      }
+    },
+    {
+      "name": "Get Statistics",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:5000/api/stats",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "stats"]
+        },
+        "description": "Get vector database statistics"
+      }
+    },
+    {
+      "name": "Clear Database",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "http://localhost:5000/api/clear",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "clear"]
+        },
+        "description": "Clear all vectors from the database (WARNING: destructive)"
+      }
+    }
+  ]
+}

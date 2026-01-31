@@ -1,426 +1,401 @@
 # RAG Q&A Support Bot
 
-A Retrieval Augmented Generation (RAG) based question-answering system that crawls websites, indexes content, and provides intelligent Q&A through a REST API.
+A complete implementation of a Retrieval Augmented Generation (RAG) system for building intelligent Q&A support bots. This project crawls websites, generates embeddings, stores them in a vector database, and provides an API for answering questions based on the crawled content.
 
-## Overview
+## Project Overview
 
-This project implements a complete RAG workflow:
+This RAG pipeline includes:
+1. **Web Crawler** - Extracts content from website pages
+2. **Text Cleaner** - Cleans and chunks text for optimal embedding generation
+3. **Embeddings Generator** - Creates vector embeddings using OpenAI's API
+4. **Vector Database** - Stores and retrieves embeddings using Pinecone
+5. **Q&A Engine** - Retrieves relevant context and generates answers using GPT
 
-1. **Web Crawling**: Automatically crawls and extracts content from target websites
-2. **Text Processing**: Cleans and chunks content into manageable pieces
-3. **Embeddings**: Generates semantic embeddings using sentence transformers
-4. **Vector Storage**: Stores embeddings in ChromaDB for fast retrieval
-5. **Q&A API**: Flask-based REST API for answering questions from indexed content
+## Architecture
 
-## Features
-
-- ✅ Automatic website crawling with domain filtering
-- ✅ Intelligent text cleaning and preprocessing
-- ✅ Semantic embedding generation
-- ✅ Fast vector-based retrieval
-- ✅ RESTful API endpoints
-- ✅ Comprehensive logging and error handling
-- ✅ Easy configuration via environment variables
+```
+User Query
+    ↓
+[Query Embedding] ← OpenAI API
+    ↓
+[Vector Search] ← Pinecone DB
+    ↓
+[Context Retrieval]
+    ↓
+[Answer Generation] ← GPT-3.5-Turbo
+    ↓
+Answer + Sources
+```
 
 ## Prerequisites
 
 - Python 3.8+
+- OpenAI API key (for embeddings and LLM)
+- Pinecone API key (for vector storage)
 - pip package manager
-- Git
-- curl or Postman (for API testing)
 
 ## Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd AI-First
-   ```
-
-2. **Create and activate virtual environment**
-   ```bash
-   # Windows
-   python -m venv venv
-   venv\Scripts\activate
-   
-   # macOS/Linux
-   python -m venv venv
-   source venv/bin/activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Set up environment variables**
-   ```bash
-   # Copy the example file
-   cp .env.example .env
-   
-   # Edit .env and add your configuration:
-   # - OPENAI_API_KEY (if using OpenAI)
-   # - TARGET_WEBSITE (URL to crawl)
-   # - VECTOR_DB_PATH (path to store database)
-   # - FLASK_PORT (API port, default 5000)
-   ```
-
-## Configuration
-
-Edit `.env` file to configure:
-
-```env
-# OpenAI API Configuration (optional for future enhancement)
-OPENAI_API_KEY=your_openai_api_key_here
-
-# Website to Crawl
-TARGET_WEBSITE=https://example.com
-
-# Vector Database Configuration
-VECTOR_DB_PATH=./data/chroma_db
-
-# API Configuration
-FLASK_ENV=development
-FLASK_PORT=5000
+1. **Clone the repository:**
+```bash
+git clone <repository-url>
+cd AI-First
 ```
+
+2. **Create a Python virtual environment:**
+```bash
+python -m venv venv
+# On Windows
+venv\Scripts\activate
+# On macOS/Linux
+source venv/bin/activate
+```
+
+3. **Install dependencies:**
+```bash
+pip install -r requirements.txt
+```
+
+4. **Configure environment variables:**
+```bash
+# Copy the example config
+cp .env.example .env
+
+# Edit .env with your API keys
+```
+
+**Required environment variables:**
+- `OPENAI_API_KEY` - Your OpenAI API key
+- `PINECONE_API_KEY` - Your Pinecone API key
+- `PINECONE_ENVIRONMENT` - Your Pinecone environment (e.g., "us-west1-gcp")
+- `PINECONE_INDEX_NAME` - Name for your Pinecone index
+- `TARGET_URL` - Website URL to crawl (optional)
+- `FLASK_PORT` - Port for API server (default: 5000)
 
 ## Project Structure
 
 ```
 AI-First/
+├── config/
+│   └── config.py           # Configuration module
 ├── src/
-│   ├── __init__.py          # Package initialization
-│   ├── crawler.py           # Web crawler module
-│   ├── cleaner.py           # Text cleaning module
-│   ├── embeddings.py        # Embeddings generation
-│   ├── vector_db.py         # Vector database management
-│   ├── pipeline.py          # Complete indexing pipeline
-│   └── api.py               # Flask API
-├── data/                    # Data storage (gitignored)
-├── config/                  # Configuration files
-├── requirements.txt         # Python dependencies
-├── .env.example            # Example environment file
-├── .gitignore              # Git ignore file
-├── test_api.sh            # API test script (Linux/macOS)
-├── test_api.bat           # API test script (Windows)
-├── index_data.py          # Main script to index website
-├── run_api.py             # Main script to start API server
+│   ├── crawler.py          # Web crawling module
+│   ├── text_cleaner.py     # Text cleaning and chunking
+│   ├── embeddings.py       # Embedding generation
+│   ├── vector_db.py        # Vector database operations
+│   ├── qa_engine.py        # Q&A engine with RAG
+│   ├── api.py              # Flask API server
+│   └── __init__.py
+├── data/
+│   └── (crawled data will be stored here)
+├── requirements.txt        # Python dependencies
+├── .env.example           # Example environment variables
 └── README.md              # This file
 ```
 
 ## Usage
 
-### Step 1: Prepare Environment
+### 1. Running the API Server
+
+Start the Flask API:
+```bash
+cd src
+python api.py
+```
+
+The server will start on `http://localhost:5000`
+
+### 2. API Endpoints
+
+#### Health Check
+```bash
+GET http://localhost:5000/health
+```
+
+#### Crawl Website
+Before answering questions, you need to crawl and index a website:
 
 ```bash
-# Activate virtual environment
-# Windows: venv\Scripts\activate
-# macOS/Linux: source venv/bin/activate
-
-# Update .env with your website URL
-```
-
-### Step 2: Index Website Content
-
-```bash
-# Run the indexing pipeline
-python index_data.py
-
-# This will:
-# 1. Crawl the website (up to max_pages)
-# 2. Clean and chunk the content
-# 3. Generate embeddings
-# 4. Store in vector database
-```
-
-Expected output:
-```
-==================================================
-Starting RAG Indexing Pipeline
-==================================================
-
-[Step 1/4] Crawling website...
-Crawled 25 pages
-
-[Step 2/4] Cleaning and chunking content...
-Created 150 document chunks
-
-[Step 3/4] Generating embeddings...
-Generated 150 embeddings
-
-[Step 4/4] Storing in vector database...
-
-==================================================
-Indexing Pipeline Completed Successfully!
-==================================================
-```
-
-### Step 3: Start API Server
-
-```bash
-# Run the Flask API server
-python run_api.py
-
-# Server will start at http://localhost:5000
-```
-
-Output:
-```
- * Running on http://0.0.0.0:5000
-```
-
-### Step 4: Query the API
-
-**Health Check:**
-```bash
-curl -X GET http://localhost:5000/health
-```
-
-Response:
-```json
-{
-  "status": "healthy",
-  "service": "RAG Q&A Support Bot"
-}
-```
-
-**Get Statistics:**
-```bash
-curl -X GET http://localhost:5000/api/stats
-```
-
-Response:
-```json
-{
-  "status": "success",
-  "stats": {
-    "collection_name": "rag_documents",
-    "total_documents": 150
-  }
-}
-```
-
-**Ask a Question:**
-```bash
-curl -X POST http://localhost:5000/api/ask \
+curl -X POST http://localhost:5000/api/crawl \
   -H "Content-Type: application/json" \
   -d '{
-    "question": "What services do you offer?",
-    "top_k": 5
+    "url": "https://example.com",
+    "max_pages": 50,
+    "crawl_delay": 1
   }'
 ```
 
-Response:
+**Parameters:**
+- `url` (required) - Website URL to crawl
+- `max_pages` (optional) - Maximum pages to crawl (default: 50)
+- `crawl_delay` (optional) - Delay between requests in seconds (default: 1)
+
+**Response:**
 ```json
 {
-  "question": "What services do you offer?",
-  "retrieved_documents": [
-    {
-      "rank": 1,
-      "content": "We offer comprehensive web development services including...",
-      "source": "https://example.com/services",
-      "distance": 0.125
-    },
-    ...
-  ],
-  "total_results": 5,
-  "status": "success"
+  "status": "success",
+  "pages_crawled": 10,
+  "chunks_created": 45,
+  "vector_db_stats": {...}
 }
 ```
 
-## API Endpoints
-
-### 1. Health Check
-- **Endpoint**: `GET /health`
-- **Description**: Check if the API is running
-- **Response**: Status message
-
-### 2. Statistics
-- **Endpoint**: `GET /api/stats`
-- **Description**: Get statistics about indexed content
-- **Response**: Collection name and total document count
-
-### 3. Ask Question
-- **Endpoint**: `POST /api/ask`
-- **Description**: Submit a question and retrieve relevant documents
-- **Request Body**:
-  ```json
-  {
-    "question": "Your question here",
-    "top_k": 5
-  }
-  ```
-- **Response**: Question, retrieved documents, and metadata
-
-## Testing
-
-### Using the Test Scripts
-
-**Windows:**
-```bash
-test_api.bat
-```
-
-**Linux/macOS:**
-```bash
-bash test_api.sh
-```
-
-### Using Postman
-
-1. Import the API endpoints
-2. Create requests for each endpoint
-3. Test with various questions
-4. Verify response structure
-
-### Using curl
+#### Ask a Question
+After crawling, ask questions based on the crawled content:
 
 ```bash
-# Test 1: Health check
-curl http://localhost:5000/health
-
-# Test 2: Get stats
-curl http://localhost:5000/api/stats
-
-# Test 3: Ask question
-curl -X POST http://localhost:5000/api/ask \
+curl -X POST http://localhost:5000/api/question \
   -H "Content-Type: application/json" \
-  -d '{"question": "Your question", "top_k": 5}'
+  -d '{
+    "question": "What is your product?",
+    "top_k": 5,
+    "temperature": 0.7
+  }'
 ```
 
-## Architecture
+**Parameters:**
+- `question` (required) - Your question
+- `top_k` (optional) - Number of context chunks to retrieve (1-10, default: 5)
+- `temperature` (optional) - LLM temperature for generation (0-2, default: 0.7)
 
-### Workflow
-
-```
-Website URL
-    ↓
-[Web Crawler] → Extract HTML pages
-    ↓
-[Text Cleaner] → Clean & Chunk text
-    ↓
-[Embeddings Generator] → Generate vectors
-    ↓
-[Vector Database] → Store embeddings
-    ↓
-[Vector Database] ← Query embeddings
-    ↓
-[Retrieval Results] → Flask API
-    ↓
-User Question/Answer
+**Response:**
+```json
+{
+  "query": "What is your product?",
+  "answer": "Based on the documentation...",
+  "sources": [
+    {
+      "url": "https://example.com/about",
+      "title": "About Us",
+      "score": 0.92
+    }
+  ]
+}
 ```
 
-### Components
+#### Get Database Statistics
+```bash
+curl http://localhost:5000/api/stats
+```
 
-1. **Crawler**: BeautifulSoup-based web crawler
-   - Domain-restricted crawling
-   - Automatic HTML to text extraction
-   - Recursive link discovery
+#### Clear Database
+```bash
+curl -X POST http://localhost:5000/api/clear
+```
 
-2. **Cleaner**: Text preprocessing
-   - Whitespace normalization
-   - URL and email removal
-   - Overlapping chunk generation
+## Complete Workflow Example
 
-3. **Embeddings**: Semantic vectorization
-   - Uses `all-MiniLM-L6-v2` model by default
-   - Batch processing support
-   - Single text embedding capability
+### 1. Prepare Environment
+```bash
+# Set up virtual environment and install dependencies
+python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+pip install -r requirements.txt
 
-4. **Vector DB**: ChromaDB-based storage
-   - Persistent storage
-   - Cosine similarity search
-   - Metadata tracking
+# Create .env file with your API keys
+cp .env.example .env
+# Edit .env with your credentials
+```
 
-5. **API**: Flask REST interface
-   - Stateless design
-   - Error handling
-   - JSON request/response
+### 2. Start API Server
+```bash
+cd src
+python api.py
+```
+
+### 3. Crawl a Website
+```bash
+curl -X POST http://localhost:5000/api/crawl \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://python.org",
+    "max_pages": 20,
+    "crawl_delay": 2
+  }'
+```
+
+### 4. Ask Questions
+```bash
+# Question 1
+curl -X POST http://localhost:5000/api/question \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What is Python?"
+  }'
+
+# Question 2
+curl -X POST http://localhost:5000/api/question \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "How do I get started with Python?",
+    "top_k": 3
+  }'
+```
+
+## Testing with Postman
+
+1. **Import the API:**
+   - Create a new collection in Postman
+   - Add requests for each endpoint
+
+2. **Test Health:**
+   - Method: GET
+   - URL: `http://localhost:5000/health`
+
+3. **Test Crawl:**
+   - Method: POST
+   - URL: `http://localhost:5000/api/crawl`
+   - Body (raw JSON):
+   ```json
+   {
+     "url": "https://example.com",
+     "max_pages": 20
+   }
+   ```
+
+4. **Test Question:**
+   - Method: POST
+   - URL: `http://localhost:5000/api/question`
+   - Body (raw JSON):
+   ```json
+   {
+     "question": "Your question here?"
+   }
+   ```
+
+## Key Features
+
+### Web Crawler
+- Respects robots.txt and site boundaries
+- Automatic URL deduplication
+- Configurable crawl delay for politeness
+- HTML parsing and content extraction
+- Excludes non-content pages (login, logout, PDFs, etc.)
+
+### Text Processing
+- Removes HTML and special characters
+- Automatic text chunking with overlap
+- Sentence-aware splitting for better context
+- Configurable chunk size
+
+### Embeddings
+- Uses OpenAI's `text-embedding-3-small` model
+- Batch processing for efficiency
+- 1536-dimensional embeddings
+
+### Vector Database
+- Pinecone for scalable vector storage
+- Metadata preservation for source tracking
+- Fast similarity search
+- Batch upsert operations
+
+### Q&A Engine
+- Retrieval Augmented Generation (RAG) approach
+- Context-aware answer generation
+- Source attribution
+- Temperature control for response variation
+
+## Configuration
+
+### Chunk Size
+- Default: 500 characters
+- Increase for longer context windows
+- Decrease for more specific answers
+
+### Temperature
+- 0: Deterministic answers
+- 0.7: Balanced (default)
+- 2: Creative answers
+
+### Top-K
+- Number of context chunks to retrieve
+- Higher = more context but slower
+- Default: 5
 
 ## Troubleshooting
 
-### Issue: "ModuleNotFoundError: No module named 'src'"
-**Solution**: Make sure you're running scripts from the project root directory
+### Error: "API key not found"
+- Ensure `.env` file exists and contains your API keys
+- Check that environment variables are loaded correctly
 
-### Issue: "Connection refused" when accessing API
-**Solution**: Ensure the Flask server is running and listening on the correct port
+### Error: "Index not found"
+- Create a Pinecone index with the name specified in `.env`
+- Check Pinecone API key and environment
 
-### Issue: No documents retrieved
-**Solution**: 
-- Verify website was crawled successfully (check logs)
-- Check if vector database was created (look in `data/chroma_db`)
-- Try different search queries
+### Slow Response Times
+- Reduce `max_pages` in crawl request
+- Reduce `top_k` in question request
+- Check network connectivity
 
-### Issue: Slow embeddings generation
-**Solution**: This is normal for large datasets. Consider:
-- Using a smaller model
-- Reducing chunk size
-- Processing in batches
+### Poor Answer Quality
+- Ensure website was crawled with sufficient pages
+- Check if question is related to crawled content
+- Try with different `temperature` values
 
-### Issue: Out of memory during embeddings
-**Solution**:
-- Reduce chunk size
-- Reduce max_pages
-- Process in smaller batches
+## Advanced Usage
 
-## Performance Tips
+### Custom Chunking Strategy
+Edit `config/config.py`:
+```python
+CHUNK_SIZE = 1000  # Larger chunks
+CHUNK_OVERLAP = 100  # More overlap
+```
 
-1. **Adjust chunk size**: Balance between semantic meaning and retrieval speed
-   - Smaller chunks (100-300): More precise but more chunks
-   - Larger chunks (500-1000): Less precise but fewer chunks
+### Custom Embedding Model
+In `.env`:
+```
+EMBEDDING_MODEL=text-embedding-3-large
+```
 
-2. **Embedding model**: 
-   - `all-MiniLM-L6-v2` (default): Fast, low memory
-   - `all-mpnet-base-v2`: More accurate, higher memory
+### Custom LLM Model
+In `.env`:
+```
+LLM_MODEL=gpt-4
+```
 
-3. **Database optimization**:
-   - Regular persist operations
-   - Monitor collection size
-   - Archive old data if needed
+## Performance Considerations
 
-## Technologies Used
+- **Memory**: Vector embeddings consume ~6KB per document
+- **Cost**: OpenAI API charges per token (~$0.02 per 1M tokens for embeddings)
+- **Speed**: Batch embedding generation is faster than individual requests
+- **Database**: Pinecone has free tier with 2GB storage
 
-- **Python 3.8+**: Core language
-- **Flask**: Web framework
-- **BeautifulSoup4**: HTML parsing
-- **SentenceTransformers**: Embeddings generation
-- **ChromaDB**: Vector database
-- **Requests**: HTTP client
-- **python-dotenv**: Environment configuration
+## Limitations
+
+- Crawls only text content (no PDFs, images, or videos)
+- Respects HTTP redirects but may miss some content
+- Requires active internet connection for crawling
+- API rate limits apply from OpenAI and Pinecone
 
 ## Future Enhancements
 
-- [ ] Integration with OpenAI for answer generation
 - [ ] Support for multiple websites
-- [ ] Advanced filtering and date-based queries
-- [ ] Caching layer for frequent queries
-- [ ] Web UI dashboard
-- [ ] Authentication and rate limiting
-- [ ] Database backup and recovery
+- [ ] Web UI for easier interaction
+- [ ] PDF and document support
 - [ ] Multi-language support
+- [ ] Real-time crawl updates
+- [ ] Analytics and usage tracking
+- [ ] Caching for repeated questions
+- [ ] Fine-tuning on domain-specific data
 
 ## Contributing
 
-1. Create a feature branch
-2. Make your changes
-3. Test thoroughly
-4. Submit a pull request
+Feel free to submit issues and enhancement requests!
 
 ## License
 
-This project is licensed under the MIT License.
+MIT License - see LICENSE file for details
 
 ## Support
 
-For issues or questions:
-1. Check the troubleshooting section
-2. Review logs for error messages
-3. Verify configuration settings
-4. Check internet connectivity for crawling
+For issues or questions, please check:
+1. Environment variables are correctly set
+2. API keys have necessary permissions
+3. Internet connection is stable
+4. API rate limits haven't been exceeded
 
-## Notes
+---
 
-- The system only answers questions based on crawled content
-- Crawling respects domain boundaries (same domain only)
-- Embeddings are cached in the vector database
-- All content is stored locally in `data/` directory
+**Built with:** Python, OpenAI, Pinecone, Flask  
+**Version:** 1.0.0  
+**Last Updated:** 2026-01-31
