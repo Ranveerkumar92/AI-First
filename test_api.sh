@@ -1,41 +1,39 @@
 #!/bin/bash
-# Test script for RAG Q&A API
+# Quick test script for RAG Q&A Bot API
 
-echo "Starting RAG Q&A Bot API Tests..."
-echo ""
+API_URL="http://localhost:5000"
 
-# Base URL
-BASE_URL="http://localhost:5000"
+echo "=========================================="
+echo "RAG Q&A Bot - API Test Script"
+echo "=========================================="
 
-# Color codes
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Test 1: Health check
+echo -e "\n1. Testing Health Check..."
+curl -s "$API_URL/health" | jq .
 
-echo -e "${BLUE}Test 1: Health Check${NC}"
-curl -X GET "$BASE_URL/health"
-echo -e "\n\n"
-
-echo -e "${BLUE}Test 2: Get Statistics${NC}"
-curl -X GET "$BASE_URL/api/stats"
-echo -e "\n\n"
-
-echo -e "${BLUE}Test 3: Ask a Question${NC}"
-curl -X POST "$BASE_URL/api/ask" \
+# Test 2: Crawl website (example)
+echo -e "\n2. Crawling website..."
+curl -s -X POST "$API_URL/api/crawl" \
   -H "Content-Type: application/json" \
   -d '{
-    "question": "What is this website about?",
+    "url": "https://example.com",
+    "max_pages": 5,
+    "crawl_delay": 2
+  }' | jq .
+
+# Test 3: Get stats
+echo -e "\n3. Getting database statistics..."
+curl -s "$API_URL/api/stats" | jq .
+
+# Test 4: Ask a question
+echo -e "\n4. Asking a question..."
+curl -s -X POST "$API_URL/api/question" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What is the main topic of this website?",
     "top_k": 3
-  }'
-echo -e "\n\n"
+  }' | jq .
 
-echo -e "${BLUE}Test 4: Ask Another Question${NC}"
-curl -X POST "$BASE_URL/api/ask" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "Tell me about the key features",
-    "top_k": 5
-  }'
-echo -e "\n\n"
-
-echo -e "${GREEN}Tests completed!${NC}"
+echo -e "\n=========================================="
+echo "Tests completed!"
+echo "=========================================="

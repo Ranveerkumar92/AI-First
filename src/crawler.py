@@ -1,91 +1,100 @@
 """
 Web Crawler Module
-Crawls website pages and extracts text content
+Crawls website pages and extracts content
 """
+import json
+import time
+from typing import Set, List, Dict
+from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
 import logging
-from typing import Set, List, Dict
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class WebCrawler:
-    def __init__(self, base_url: str, max_pages: int = 50):
+    """
+    Crawls website pages and extracts content
+    """
+    
+    def __init__(self, base_url: str, max_pages: int = 50, delay: float = 1):
         """
-        Initialize web crawler
+        Initialize crawler
         
         Args:
             base_url: Starting URL to crawl
             max_pages: Maximum number of pages to crawl
+            delay: Delay between requests in seconds
         """
         self.base_url = base_url
         self.max_pages = max_pages
+        self.delay = delay
         self.visited_urls: Set[str] = set()
-        self.pages: List[Dict[str, str]] = []
-        self.domain = urlparse(base_url).netloc
+        self.crawled_data: List[Dict] = []
+        self.base_domain = urlparse(base_url).netloc
         
     def is_valid_url(self, url: str) -> bool:
-        """Check if URL belongs to the same domain"""
+        """
+        Check if URL is valid and belongs to the same domain
+        """
         try:
             parsed = urlparse(url)
-            return parsed.netloc == self.domain and parsed.scheme in ['http', 'https']
+            # Check if domain matches
+            if parsed.netloc != self.base_domain:
+                return False
+            # Exclude common non-content pages
+            exclude_patterns = ['.pdf', '.zip', '.exe', 'logout', 'login', '#']
+            for pattern in exclude_patterns:
+                if pattern in url.lower():
+                    return False
+            return parsed.scheme in ['http', 'https']
         except:
             return False
     
-    def extract_text_from_html(self, html: str) -> str:
-        """Extract text content from HTML"""
+    def extract_content(self, html: str, url: str) -> Dict:
+        """
+        Extract text content from HTML
+        
+        Args:
+            html: HTML content
+            url: URL of the page
+            
+        Returns:
+            Dictionary with title, content, and metadata
+        """
         soup = BeautifulSoup(html, 'html.parser')
         
         # Remove script and style elements
-        for script in soup(['script', 'style']):
+        for script in soup(['script', 'style', 'nav', 'footer']):
             script.decompose()
         
-        # Get text
-        text = soup.get_text(separator=' ', strip=True)
-        return text
+        # Extract title
+        title = soup.title.string if soup.title else "No Title"
+        
+        # Extract main content
+        # Try to find main content areas
+        main_content = soup.find('main') or soup.find('article') or soup.find('body')
+        
+        if main_content:
+            text = main_content.get_text(separator=' ', strip=True)
+        else:
+            text = soup.get_text(separator=' ', strip=True)
+        
+        return {
+            'url': url,
+            'title': title,
+            'content': text,
+            'timestamp': time.time()
+        }
     
-    def fetch_page(self, url: str) -> tuple[str, bool]:
+    def crawl(self) -> List[Dict]:
         """
-        Fetch a page from URL
+        Crawl the website
         
         Returns:
-            Tuple of (content, success_flag)
-        """
-        try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            response = requests.get(url, timeout=10, headers=headers)
-            response.raise_for_status()
-            return response.text, True
-        except requests.RequestException as e:
-            logger.error(f"Error fetching {url}: {str(e)}")
-            return "", False
-    
-    def get_links_from_page(self, html: str, page_url: str) -> List[str]:
-        """Extract all links from HTML page"""
-        soup = BeautifulSoup(html, 'html.parser')
-        links = []
-        
-        for link in soup.find_all('a', href=True):
-            url = urljoin(page_url, link['href'])
-            # Remove fragments
-            url = url.split('#')[0]
-            
-            if self.is_valid_url(url) and url not in self.visited_urls:
-                links.append(url)
-        
-        return links
-    
-    def crawl(self) -> List[Dict[str, str]]:
-        """
-        Main crawl function
-        
-        Returns:
-            List of pages with url and content
+            List of crawled pages with content
         """
         to_visit = [self.base_url]
         
@@ -95,26 +104,57 @@ class WebCrawler:
             if url in self.visited_urls:
                 continue
             
-            logger.info(f"Crawling: {url} ({len(self.visited_urls) + 1}/{self.max_pages})")
-            
-            html, success = self.fetch_page(url)
-            if not success:
-                continue
-            
             self.visited_urls.add(url)
             
-            # Extract text
-            text = self.extract_text_from_html(html)
-            
-            if text.strip():
-                self.pages.append({
-                    'url': url,
-                    'content': text
-                })
-            
-            # Get links for further crawling
-            new_links = self.get_links_from_page(html, url)
-            to_visit.extend(new_links)
+            try:
+                logger.info(f"Crawling: {url}")
+                
+                # Fetch page
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+                response = requests.get(url, headers=headers, timeout=10)
+                response.raise_for_status()
+                
+                # Extract content
+                page_data = self.extract_content(response.text, url)
+                self.crawled_data.append(page_data)
+                
+                # Extract and queue new URLs
+                soup = BeautifulSoup(response.text, 'html.parser')
+                for link in soup.find_all('a', href=True):
+                    href = link['href']
+                    absolute_url = urljoin(url, href)
+                    
+                    # Remove fragments
+                    absolute_url = absolute_url.split('#')[0]
+                    
+                    if self.is_valid_url(absolute_url) and absolute_url not in self.visited_urls:
+                        to_visit.append(absolute_url)
+                
+                # Respect crawl delay
+                time.sleep(self.delay)
+                
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Error crawling {url}: {e}")
+            except Exception as e:
+                logger.error(f"Unexpected error for {url}: {e}")
         
-        logger.info(f"Crawling completed. Total pages: {len(self.pages)}")
-        return self.pages
+        logger.info(f"Crawling completed. Pages crawled: {len(self.crawled_data)}")
+        return self.crawled_data
+    
+    def save_to_file(self, filepath: str):
+        """
+        Save crawled data to JSON file
+        """
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(self.crawled_data, f, indent=2, ensure_ascii=False)
+        logger.info(f"Data saved to {filepath}")
+
+
+def crawl_website(url: str, max_pages: int = 50, delay: float = 1) -> List[Dict]:
+    """
+    Convenience function to crawl a website
+    """
+    crawler = WebCrawler(url, max_pages, delay)
+    return crawler.crawl()

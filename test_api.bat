@@ -1,35 +1,35 @@
 @echo off
-REM Test script for RAG Q&A API (Windows)
+REM Quick test script for RAG Q&A Bot API (Windows)
 
 setlocal enabledelayedexpansion
-echo Starting RAG Q^&A Bot API Tests...
-echo.
 
-REM Base URL
-set BASE_URL=http://localhost:5000
+set API_URL=http://localhost:5000
 
-echo Test 1: Health Check
-curl -X GET "%BASE_URL%/health"
 echo.
-echo.
+echo ==========================================
+echo RAG Q&A Bot - API Test Script
+echo ==========================================
 
-echo Test 2: Get Statistics
-curl -X GET "%BASE_URL%/api/stats"
+REM Test 1: Health check
 echo.
-echo.
+echo 1. Testing Health Check...
+curl -s "%API_URL%/health"
 
-echo Test 3: Ask a Question
-curl -X POST "%BASE_URL%/api/ask" ^
+REM Test 2: Get stats
+echo.
+echo.
+echo 2. Getting database statistics...
+curl -s "%API_URL%/api/stats"
+
+REM Test 3: Ask a question
+echo.
+echo.
+echo 3. Asking a question...
+curl -X POST "%API_URL%/api/question" ^
   -H "Content-Type: application/json" ^
-  -d "{\"question\": \"What is this website about?\", \"top_k\": 3}"
-echo.
-echo.
+  -d "{"question": "What is covered in this website?", "top_k": 3}"
 
-echo Test 4: Ask Another Question
-curl -X POST "%BASE_URL%/api/ask" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"question\": \"Tell me about the key features\", \"top_k\": 5}"
 echo.
-echo.
-
+echo ==========================================
 echo Tests completed!
+echo ==========================================

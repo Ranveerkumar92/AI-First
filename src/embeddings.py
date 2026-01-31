@@ -1,49 +1,116 @@
 """
 Embeddings Module
-Generates embeddings for text chunks using sentence-transformers
+Generates embeddings for text chunks
 """
 import logging
-from typing import List
-from sentence_transformers import SentenceTransformer
+from typing import List, Dict
+import numpy as np
 
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class EmbeddingsGenerator:
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+    """
+    Generates embeddings for text using OpenAI API
+    """
+    
+    def __init__(self, api_key: str, model: str = "text-embedding-3-small"):
         """
         Initialize embeddings generator
         
         Args:
-            model_name: Name of the sentence-transformers model to use
+            api_key: OpenAI API key
+            model: Embedding model to use
         """
-        logger.info(f"Loading embeddings model: {model_name}")
-        self.model = SentenceTransformer(model_name)
-        logger.info("Embeddings model loaded successfully")
-    
-    def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """
-        Generate embeddings for a list of texts
+        if not OPENAI_AVAILABLE:
+            raise ImportError("OpenAI package not installed")
         
-        Args:
-            texts: List of text strings
-            
-        Returns:
-            List of embedding vectors
-        """
-        logger.info(f"Generating embeddings for {len(texts)} texts")
-        embeddings = self.model.encode(texts, show_progress_bar=True)
-        return embeddings.tolist()
+        self.client = OpenAI(api_key=api_key)
+        self.model = model
     
-    def generate_single_embedding(self, text: str) -> List[float]:
+    def generate_embedding(self, text: str) -> List[float]:
         """
         Generate embedding for a single text
         
         Args:
-            text: Single text string
+            text: Text to generate embedding for
             
         Returns:
-            Embedding vector
+            List of floats representing the embedding
         """
-        embedding = self.model.encode(text)
-        return embedding.tolist()
+        try:
+            response = self.client.embeddings.create(
+                input=text,
+                model=self.model
+            )
+            return response.data[0].embedding
+        except Exception as e:
+            logger.error(f"Error generating embedding: {e}")
+            raise
+    
+    def generate_embeddings_batch(self, texts: List[str], batch_size: int = 100) -> List[List[float]]:
+        """
+        Generate embeddings for multiple texts
+        
+        Args:
+            texts: List of texts to generate embeddings for
+            batch_size: Number of texts to process in one batch
+            
+        Returns:
+            List of embeddings
+        """
+        embeddings = []
+        
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            logger.info(f"Processing batch {i // batch_size + 1}/{(len(texts) + batch_size - 1) // batch_size}")
+            
+            try:
+                response = self.client.embeddings.create(
+                    input=batch,
+                    model=self.model
+                )
+                
+                # Sort by index to maintain order
+                batch_embeddings = sorted(response.data, key=lambda x: x.index)
+                embeddings.extend([item.embedding for item in batch_embeddings])
+                
+            except Exception as e:
+                logger.error(f"Error in batch processing: {e}")
+                raise
+        
+        return embeddings
+    
+    def embed_documents(self, documents: List[Dict]) -> List[Dict]:
+        """
+        Add embeddings to documents
+        
+        Args:
+            documents: List of documents to embed
+            
+        Returns:
+            Documents with added embedding field
+        """
+        contents = [doc['content'] for doc in documents]
+        embeddings = self.generate_embeddings_batch(contents)
+        
+        for doc, embedding in zip(documents, embeddings):
+            doc['embedding'] = embedding
+        
+        logger.info(f"Generated embeddings for {len(documents)} documents")
+        return documents
+
+
+def generate_embeddings(api_key: str, documents: List[Dict], model: str = "text-embedding-3-small") -> List[Dict]:
+    """
+    Convenience function to generate embeddings
+    """
+    generator = EmbeddingsGenerator(api_key, model)
+    return generator.embed_documents(documents)
